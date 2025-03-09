@@ -3187,6 +3187,11 @@ int16_t ILI9488_t3::strPixelLen(const char * str, uint16_t cb)
 			if (!font)
 			{
 				len+=textsize_x*6;
+
+				#if PRH_BUGFIX
+					if (len > maxlen)
+						maxlen = len;
+				#endif
 			}
 			else
 			{
@@ -4003,6 +4008,16 @@ int16_t ILI9488_t3::drawFloat(float floatNumber, int dp, int poX, int poY)
 int16_t ILI9488_t3::drawString(const String& string, int poX, int poY)
 {
   int16_t len = string.length() + 2;
+
+	#if PRH_DEBUG
+		Serial.print("drawString(const String) len=");
+		Serial.print(len);
+		Serial.print(" x=");
+		Serial.print(poX);
+		Serial.print(" y=");
+		Serial.println(poY);
+	#endif
+	
   char buffer[len];
   string.toCharArray(buffer, len);
   return drawString(buffer, len-2, poX, poY);
@@ -4013,10 +4028,20 @@ int16_t ILI9488_t3::drawString(const char string[], int16_t len, int poX, int po
   int16_t sumX = 0;
   uint8_t padding = 1;
   
+	#if PRH_DEBUG
+		Serial.printf("drawString([]) len=%d x=%d y=%d\n",len,poX,poY);
+		Serial.printf("textsize=%d textsize_x=%d textsize_y=%d\n",textsize,textsize_x,textsize_y);
+	#endif
+
   uint16_t cwidth =
       strPixelLen(string, len); // Find the pixel width of the string in the font
   uint16_t cheight = textsize*8;
-  
+
+	#if PRH_DEBUG
+		Serial.printf("cwidth=%d\n",cwidth);
+		// prh cwidth was coming back as zero before bugfix
+	#endif
+
   if (textdatum || padX)
   {
     switch(textdatum) {
@@ -4080,9 +4105,38 @@ int16_t ILI9488_t3::drawString(const char string[], int16_t len, int poX, int po
     //if (poY+cheight-baseline >_height) poY = _height - cheight;
   }
   if(font == NULL){
-	  for(uint8_t i = 0; i < len; i++){
+
+	#if PRH_DEBUG
+		Serial.println("font==NULL");
+	#endif
+
+	#if PRH_BUGFIX
+		sumX = 0;
+	#endif
+
+	for(uint8_t i = 0; i < len; i++){
+
+	  #if PRH_DEBUG
+		Serial.printf(" drawChar(%d,%d,'%c',0x%04x,0x%04x,%d)\n",
+			(int16_t) (poX+sumX),
+			(int16_t) poY,
+			string[i],
+			textcolor,
+			textbgcolor,
+			textsize);
+	  #endif
+
 		drawChar((int16_t) (poX+sumX), (int16_t) poY, string[i], textcolor, textbgcolor, textsize);
-		sumX += cwidth/(len-2) + padding;
+		#if PRH_BUGFIX
+			sumX += textsize_x * 6;
+		#else
+			sumX += cwidth/(len-2) + padding;
+		#endif
+		
+	#if PRH_DEBUG
+		Serial.printf("sumX=%d\n",sumX);
+	#endif
+
 	  }
   } else {
 	  setCursor(poX, poY);

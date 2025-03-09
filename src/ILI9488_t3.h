@@ -1,3 +1,7 @@
+
+#define PRH_DEBUG	0
+#define PRH_BUGFIX	1
+
 // https://github.com/PaulStoffregen/ILI9488_t3
 // http://forum.pjrc.com/threads/26305-Highly-optimized-ILI9488-(320x240-TFT-color-display)-library
 
@@ -187,8 +191,9 @@ typedef uint8_t RAFB;
 #define ILI9488_GREENYELLOW 0xAFE5      /* 173, 255,  47 */
 #define ILI9488_PINK        0xF81F
 
+#ifndef CL
 #define CL(_r,_g,_b) ((((_r)&0xF8)<<8)|(((_g)&0xFC)<<3)|((_b)>>3))
-
+#endif
 #define sint16_t int16_t
 
 // Map fonts that were modified back to the ILI9341 font
@@ -366,14 +371,28 @@ class ILI9488_t3 : public Print
 	void drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color);
 	void drawChar(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t size_x, uint8_t size_y);
 	void inline drawChar(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t size) 
+	#if PRH_BUGFIX
+		// prh bugfix - added 2nd 'size' param to stop infinite recursion crash
+	    { drawChar(x, y, c, color, bg, size, size);}
+	#else
 	    { drawChar(x, y, c, color, bg, size);}
+	#endif
+
+	#ifndef CENTER
 	static const int16_t CENTER = 9998;
+	#endif
 	void setCursor(int16_t x, int16_t y, bool autoCenter=false);
     void getCursor(int16_t *x, int16_t *y);
 	void setTextColor(uint16_t c);
 	void setTextColor(uint16_t c, uint16_t bg);
     void setTextSize(uint8_t sx, uint8_t sy);
-	void inline setTextSize(uint8_t s) { setTextSize(s,s); }
+
+	#ifdef PRH_BUGFIX
+		void inline setTextSize(uint8_t s) { textsize=s; setTextSize(s,s); }
+	#else
+		void inline setTextSize(uint8_t s) { setTextSize(s,s); }
+	#endif
+
 	uint8_t getTextSizeX();
 	uint8_t getTextSizeY();
 	uint8_t getTextSize();
@@ -755,8 +774,9 @@ class ILI9488_t3 : public Print
 	//    digitalWriteFast(2, LOW);
 	}
 
-
-	#define TCR_MASK  (LPSPI_TCR_PCS(3) | LPSPI_TCR_FRAMESZ(31) | LPSPI_TCR_CONT | LPSPI_TCR_RXMSK )
+#ifndef TCR_MASK
+#define TCR_MASK  (LPSPI_TCR_PCS(3) | LPSPI_TCR_FRAMESZ(31) | LPSPI_TCR_CONT | LPSPI_TCR_RXMSK )
+#endif
 	void maybeUpdateTCR(uint32_t requested_tcr_state) /*__attribute__((always_inline)) */ {
 		if ((_spi_tcr_current & TCR_MASK) != requested_tcr_state) {
 			bool dc_state_change = (_spi_tcr_current & LPSPI_TCR_PCS(3)) != (requested_tcr_state & LPSPI_TCR_PCS(3));
